@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Todo List</title>
+    <link rel="stylesheet" href="public/index.css" />
+    <script src="https://unpkg.com/htmx.org@1.9.6" defer></script>
+    <script
+      src="https://unpkg.com/htmx.org/dist/ext/loading-states.js"
+      defer
+    ></script>
+  </head>
+  <body hx-ext="loading-states">
+    <p id="loading" class="hidden text-blue-700">loading...</p>
+    <form
+      hx-post="/add-todo"
+      data-loading-target="#loading"
+      data-loading-class-remove="hidden"
+    >
+      <input type="text" name="todo" />
+      <button type="submit">Add</button>
+    </form>
+  </body>
+</html>
