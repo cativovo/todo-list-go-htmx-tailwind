@@ -4,12 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "tailwind:dev": "tailwindcss -i ./web/tailwind/input.css -o ./public/index.css --watch"
+    "tailwind:dev": "tailwindcss -i ./web/css/index.css -o ./public/index.css --watch",
+    "build:dev": "esbuild ./web/js/index.js --bundle --outdir=./public --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "esbuild": "0.19.5",
     "prettier": "^3.0.3",
     "prettier-plugin-tailwindcss": "^0.5.5",
     "tailwindcss": "^3.3.3"

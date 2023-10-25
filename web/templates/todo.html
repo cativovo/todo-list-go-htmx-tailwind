@@ -1,0 +1,70 @@
+{{$taskId := (print "task-" .Id) }}
+<li
+  id="{{$taskId}}"
+  data-updated-at="{{.UpdatedAt}}"
+  data-checked="{{.Completed}}"
+  class="flex items-center gap-2 rounded-md border border-zinc-600 px-2 py-3"
+  data-loading-states
+  hx-on::after-on-load="
+    const didUpdate = event.detail.successful && event.detail.requestConfig.path.includes('update');
+    if (didUpdate) {
+      this.remove();
+      Toast.fire({ icon: 'success', title: 'Todo updated!' });
+    }
+  "
+>
+  <input
+    class="cursor-pointer"
+    value="true"
+    name="completed"
+    {{if
+    .Completed}}
+    checked
+    {{end}}
+    type="checkbox"
+    hx-patch="/todo/update/{{.Id}}"
+    hx-on::after-on-load=""
+    hx-swap="afterbegin"
+    hx-target="#todos"
+    data-loading-delay
+    data-loading-disable
+    hx-on::response-error="this.checked = false; Toast.fire({ icon: 'error', title: 'Todo update failed!' })"
+  />
+  {{if .Completed}}
+  <p class="line-through">{{.TaskName}}</p>
+  {{else}}
+  <input
+    class="w-full border-b-2 border-transparent focus:border-zinc-600 focus:outline-none"
+    value="{{.TaskName}}"
+    name="taskName"
+    type="text"
+    hx-patch="/todo/update/{{.Id}}"
+    hx-swap="afterbegin"
+    hx-target="#todos"
+    required
+    data-loading-delay
+    data-loading-disable
+    hx-on::response-error="Toast.fire({ icon: 'error', title: 'Todo update failed!' })"
+  />
+  {{end}}
+  <button
+    class="ml-auto disabled:bg-gray-300"
+    type="button"
+    hx-delete="/todo/delete/{{.Id}}"
+    hx-target="closest li"
+    hx-swap="delete"
+    hx-on::confirm="handleConfirm(event, { title: 'Confirm', text: 'Do you want to continue?' })"
+    hx-on::after-on-load="Toast.fire({ icon: 'success', title: 'Todo deleted!' })"
+    hx-on::response-error="Toast.fire({ icon: 'error', title: 'Todo deletion failed!' })"
+    data-loading-delay
+    data-loading-disable
+  >
+    Delete
+  </button>
+  <input
+    type="hidden"
+    data-loading-delay
+    data-loading-target="#{{$taskId}}"
+    data-loading-class="bg-gray-300"
+  />
+</li>

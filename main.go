@@ -3,12 +3,13 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"fmt"
+	"html/template"
 	"log"
 	"net/http"
-	"text/template"
+	"strings"
+	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 type (
@@ -16,39 +17,46 @@ type (
 	HandlerWithDB func(db *sql.DB, w http.ResponseWriter, r *http.Request) error
 )
 
-// pages
-func homePage(w http.ResponseWriter, _ *http.Request) {
-	tmpl := template.Must(template.ParseFiles("web/templates/base.html"))
-	tmpl.Execute(w, nil)
+type Todo struct {
+	Id        string
+	TaskName  string
+	UpdatedAt string
+	Completed bool
 }
 
-func todos(db *sql.DB, w http.ResponseWriter, _ *http.Request) error {
-	rows, err := db.Query("SELECT * from todo")
+// pages
+func homePage(db *sql.DB, w http.ResponseWriter, _ *http.Request) error {
+	rows, err := db.Query("SELECT id, task_name, updated_at, completed from todo ORDER BY completed ASC, updated_at DESC")
 	if err != nil {
 		return err
 	}
 
-	for rows.Next() {
-		id := ""
-		task_name := ""
-		updated_at := ""
-		completed := false
+	todos := []Todo{}
 
-		if err := rows.Scan(&id, &task_name, &updated_at, &completed); err != nil {
+	for rows.Next() {
+		todo := Todo{}
+		err = rows.Scan(&todo.Id, &todo.TaskName, &todo.UpdatedAt, &todo.Completed)
+		if err != nil {
 			return err
 		}
 
-		fmt.Println(id, task_name, updated_at, completed)
+		todos = append(todos, todo)
 	}
 
-	fmt.Fprint(w, "test")
+	tmpl := template.Must(template.ParseFiles("web/templates/base.html", "web/templates/todo.html"))
+
+	err = tmpl.Execute(w, todos)
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 // partials
-func handleAddTodo(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
-	todoText := r.PostFormValue("todo")
+func addTodo(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
+	taskName := r.PostFormValue("taskName")
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -57,8 +65,8 @@ func handleAddTodo(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
 
 	stmt, err := tx.Prepare(`
       INSERT INTO
-      todo (task_name)
-      VALUES ($1)
+      todo (task_name, updated_at)
+      VALUES ($1, $2)
       RETURNING id, updated_at
       `)
 	if err != nil {
@@ -69,9 +77,10 @@ func handleAddTodo(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
 
 	id := ""
 	updated_at := ""
+	timestamp := pq.FormatTimestamp(time.Now())
 
 	{
-		err := stmt.QueryRow(todoText).Scan(&id, &updated_at)
+		err := stmt.QueryRow(taskName, timestamp).Scan(&id, &updated_at)
 		if err != nil {
 			return err
 		}
@@ -84,8 +93,122 @@ func handleAddTodo(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	fmt.Println("Todo created:", id, todoText, updated_at)
-	fmt.Fprint(w, todoText)
+	w.WriteHeader(http.StatusCreated)
+	todoTmpl := template.Must(template.ParseFiles("web/templates/todo.html"))
+	err = todoTmpl.Execute(w, map[string]interface{}{
+		"Id":        id,
+		"TaskName":  taskName,
+		"UpdatedAt": updated_at,
+	})
+
+	return err
+}
+
+func deleteTodo(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
+	segments := strings.Split(r.URL.Path, "/")
+	id := segments[len(segments)-1]
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare("DELETE FROM todo WHERE id = $1")
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.Exec(id)
+	if err != nil {
+		return err
+	}
+
+	log.Println(result)
+
+	{
+		err := tx.Commit()
+		if err != nil {
+			return err
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	return err
+}
+
+func updateTodo(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
+	segments := strings.Split(r.URL.Path, "/")
+	id := segments[len(segments)-1]
+	taskName := r.PostFormValue("taskName")
+	completed := r.PostFormValue("completed") == "true"
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	taskNameResult := ""
+	completedResult := false
+	updatedAt := ""
+	timestamp := pq.FormatTimestamp(time.Now())
+
+	// TODO: find a better way to do this
+	if taskName != "" {
+		stmt, err := tx.Prepare(`
+	     UPDATE todo
+       SET task_name = $1, updated_at = $2
+       WHERE id = $3
+       RETURNING task_name, completed, updated_at
+	     `)
+		if err != nil {
+			return err
+		}
+
+		defer stmt.Close()
+
+		err = stmt.QueryRow(taskName, timestamp, id).Scan(&taskNameResult, &completedResult, &updatedAt)
+		if err != nil {
+			return err
+		}
+	} else {
+		stmt, err := tx.Prepare(`
+	     UPDATE todo
+       SET completed = $1, updated_at = $2
+       WHERE id = $3
+       RETURNING task_name, completed, updated_at
+	     `)
+		if err != nil {
+			return err
+		}
+
+		defer stmt.Close()
+
+		err = stmt.QueryRow(completed, timestamp, id).Scan(&taskNameResult, &completedResult, &updatedAt)
+		if err != nil {
+			return err
+		}
+	}
+
+	{
+		err := tx.Commit()
+		if err != nil {
+			return err
+		}
+	}
+
+	tmpl := template.Must(template.ParseFiles("web/templates/todo.html"))
+	log.Println(taskNameResult, completedResult)
+
+	w.WriteHeader(http.StatusOK)
+	tmpl.Execute(w, map[string]interface{}{
+		"Id":        id,
+		"TaskName":  taskNameResult,
+		"Completed": completedResult,
+		"UpdatedAt": updatedAt,
+	})
 
 	return nil
 }
@@ -98,7 +221,7 @@ func dbInit(db *sql.DB) {
     CREATE TABLE IF NOT EXISTS todo (
       id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
       task_name VARCHAR(255) NOT NULL,
-      updated_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP,
       completed BOOLEAN DEFAULT false
     );
     `)
@@ -106,7 +229,7 @@ func dbInit(db *sql.DB) {
 		log.Fatal("DB init failed")
 	}
 
-	fmt.Println("DB init success")
+	log.Println("DB init success")
 }
 
 func createHandler(method string, db *sql.DB, handler HandlerWithDB) Handler {
@@ -116,10 +239,13 @@ func createHandler(method string, db *sql.DB, handler HandlerWithDB) Handler {
 			return
 		}
 
+		w.Header().Set("Content-Type", "text/html")
+
 		err := handler(db, w, r)
 		if err != nil {
-			fmt.Println(err)
-			fmt.Fprint(w, "Ooops something went wrong")
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -139,20 +265,21 @@ func main() {
 		log.Fatal(pingErr)
 	}
 
-	fmt.Println("Connected to db!")
+	log.Println("Connected to db!")
 
 	dbInit(db)
 
 	mux := http.NewServeMux()
-	fmt.Println("running")
+	log.Println("running")
 
 	// assets
 	mux.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	// pages
-	mux.HandleFunc("/", homePage)
-	mux.HandleFunc("/todos", createHandler(http.MethodGet, db, todos))
+	mux.HandleFunc("/", createHandler(http.MethodGet, db, homePage))
 	// partials
-	mux.HandleFunc("/add-todo", createHandler(http.MethodPost, db, handleAddTodo))
+	mux.HandleFunc("/todo/add", createHandler(http.MethodPost, db, addTodo))
+	mux.HandleFunc("/todo/delete/", createHandler(http.MethodDelete, db, deleteTodo))
+	mux.HandleFunc("/todo/update/", createHandler(http.MethodPatch, db, updateTodo))
 
 	httpErr := http.ListenAndServe("127.0.0.1:4000", mux)
 
