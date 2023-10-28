@@ -3,9 +3,11 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -252,7 +254,13 @@ func createHandler(method string, db *sql.DB, handler HandlerWithDB) Handler {
 
 func main() {
 	// DB connection
-	connStr := "postgres://postgres:1234@127.0.0.1:5432/gotodo?sslmode=disable"
+	dbUsername := os.Getenv("DB_USERNAME")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbHost := os.Getenv("DB_HOST")
+	dbName := os.Getenv("DB_NAME")
+	dbSslMode := os.Getenv("DB_SSLMODE")
+	// postgres://<dbUsername>:<dbPassword>@<dbHost>/<dbName>?sslmode=<dbSslMode>
+	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", dbUsername, dbPassword, dbHost, dbName, dbSslMode)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
