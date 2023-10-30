@@ -22,8 +22,7 @@
     checked
     {{end}}
     type="checkbox"
-    hx-patch="/todo/update/{{.Id}}"
-    hx-on::after-on-load=""
+    hx-patch="/todo/update-completed/{{.Id}}"
     hx-swap="afterbegin"
     hx-target="#todos"
     data-loading-delay
@@ -38,7 +37,7 @@
     value="{{.TaskName}}"
     name="taskName"
     type="text"
-    hx-patch="/todo/update/{{.Id}}"
+    hx-patch="/todo/update-taskname/{{.Id}}"
     hx-swap="afterbegin"
     hx-target="#todos"
     required
@@ -54,7 +53,7 @@
     hx-target="closest li"
     hx-swap="delete"
     hx-on::confirm="handleConfirm(event, { title: 'Confirm', text: 'Do you want to continue?' })"
-    hx-on::after-on-load="Toast.fire({ icon: 'success', title: 'Todo deleted!' })"
+    hx-on::after-on-load="event.detail.successful && Toast.fire({ icon: 'success', title: 'Todo deleted!' })"
     hx-on::response-error="Toast.fire({ icon: 'error', title: 'Todo deletion failed!' })"
     data-loading-delay
     data-loading-disable

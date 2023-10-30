@@ -4,11 +4,8 @@
     <meta charset="UTF-8" />
     <title>Todo List</title>
     <link rel="stylesheet" href="public/index.css" />
-    <script src="https://unpkg.com/htmx.org@1.9.6" defer></script>
-    <script
-      src="https://unpkg.com/htmx.org/dist/ext/loading-states.js"
-      defer
-    ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/loading-states.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="public/index.js" defer></script>
   </head>
@@ -36,6 +33,7 @@
             name="taskName"
             placeholder="Add new todo"
             data-loading-disable
+            required
           />
           <button
             class="m-auto mt-4 rounded-md border border-zinc-600 bg-blue-500 px-4 text-white"

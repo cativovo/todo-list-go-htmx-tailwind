@@ -4,4 +4,7 @@ include .env
 export
 
 run_dev:
-	go run main.go
+	go run cmd/server.go
+
+test:
+	go test ./...
