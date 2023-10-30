@@ -3,8 +3,6 @@ package todo
 import (
 	"errors"
 	"log"
-
-	"github.com/cativovo/todo-list-go-htmx-tailwind/pkg/model"
 )
 
 var (
@@ -13,18 +11,18 @@ var (
 )
 
 type Service interface {
-	GetTodos() []model.Todo
-	AddTodo(taskName string) (model.Todo, error)
-	UpdateTaskName(id, taskName string) (model.Todo, error)
-	UpdateCompleted(id string, completed bool) (model.Todo, error)
+	GetTodos() []Todo
+	AddTodo(taskName string) (Todo, error)
+	UpdateTaskName(id, taskName string) (Todo, error)
+	UpdateCompleted(id string, completed bool) (Todo, error)
 	DeleteTodo(id string) (bool, error)
 }
 
 type Repository interface {
-	GetAllTodos() ([]model.Todo, error)
-	AddTodo(taskName string) (model.Todo, error)
-	UpdateTaskName(id, taskName string) (model.Todo, error)
-	UpdateCompleted(id string, completed bool) (model.Todo, error)
+	GetAllTodos() ([]Todo, error)
+	AddTodo(taskName string) (Todo, error)
+	UpdateTaskName(id, taskName string) (Todo, error)
+	UpdateCompleted(id string, completed bool) (Todo, error)
 	DeleteTodo(id string) (bool, error)
 }
 
@@ -38,40 +36,40 @@ func NewService(r Repository) Service {
 	}
 }
 
-func (s *service) AddTodo(t string) (model.Todo, error) {
+func (s *service) AddTodo(t string) (Todo, error) {
 	if err := ValidateTaskName(t); err != nil {
-		return model.Todo{}, err
+		return Todo{}, err
 	}
 
 	return s.r.AddTodo(t)
 }
 
-func (s *service) UpdateTaskName(i, t string) (model.Todo, error) {
+func (s *service) UpdateTaskName(i, t string) (Todo, error) {
 	if err := ValidateId(i); err != nil {
-		return model.Todo{}, err
+		return Todo{}, err
 	}
 
 	if err := ValidateTaskName(t); err != nil {
-		return model.Todo{}, err
+		return Todo{}, err
 	}
 
 	return s.r.UpdateTaskName(i, t)
 }
 
-func (s *service) UpdateCompleted(i string, c bool) (model.Todo, error) {
+func (s *service) UpdateCompleted(i string, c bool) (Todo, error) {
 	if err := ValidateId(i); err != nil {
-		return model.Todo{}, err
+		return Todo{}, err
 	}
 
 	return s.r.UpdateCompleted(i, c)
 }
 
-func (s *service) GetTodos() []model.Todo {
+func (s *service) GetTodos() []Todo {
 	todos, err := s.r.GetAllTodos()
 	if err != nil {
 		log.Println(err)
 
-		return []model.Todo{}
+		return []Todo{}
 	}
 
 	return todos

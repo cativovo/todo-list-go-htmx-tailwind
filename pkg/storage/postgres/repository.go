@@ -1,10 +1,11 @@
 package postgres
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type Repository struct {
@@ -20,7 +21,7 @@ func NewPostgresRepository() *Repository {
 	// postgres://<dbUsername>:<dbPassword>@<dbHost>/<dbName>?sslmode=<dbSslMode>
 	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", dbUsername, dbPassword, dbHost, dbName, dbSslMode)
 
-	db, err := sql.Open("postgres", connStr)
+	db, err := sqlx.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("DB connection error", err)
 	}

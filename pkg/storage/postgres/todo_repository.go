@@ -1,19 +1,19 @@
 package postgres
 
 import (
-	"database/sql"
 	"log"
 	"time"
 
-	"github.com/cativovo/todo-list-go-htmx-tailwind/pkg/model"
+	"github.com/cativovo/todo-list-go-htmx-tailwind/pkg/todo"
+	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
 type TodoRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewTodoRepository(db *sql.DB) *TodoRepository {
+func NewTodoRepository(db *sqlx.DB) *TodoRepository {
 	_, err := db.Exec(`
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -35,165 +35,119 @@ func NewTodoRepository(db *sql.DB) *TodoRepository {
 	}
 }
 
-func (tr *TodoRepository) GetAllTodos() ([]model.Todo, error) {
-	var todos []model.Todo
+func (tr *TodoRepository) GetAllTodos() ([]todo.Todo, error) {
+	var todos []todo.Todo
 
-	rows, err := tr.db.Query("SELECT id, task_name, updated_at, completed from todo ORDER BY completed ASC, updated_at DESC")
+	rows, err := tr.db.Queryx("SELECT id, task_name, updated_at, completed from todo ORDER BY completed ASC, updated_at DESC")
 	if err != nil {
 		return todos, err
 	}
 
 	for rows.Next() {
-		var todo model.Todo
+		var t Todo
 
-		err = rows.Scan(&todo.Id, &todo.TaskName, &todo.UpdatedAt, &todo.Completed)
+		err = rows.StructScan(&t)
 		if err != nil {
 			return todos, err
 		}
 
-		todos = append(todos, todo)
+		todos = append(todos, todo.Todo{
+			Id:        t.Id,
+			TaskName:  t.TaskName,
+			UpdatedAt: t.UpdatedAt,
+			Completed: t.Completed,
+		})
 	}
 
 	return todos, nil
 }
 
-func (tr *TodoRepository) AddTodo(taskName string) (model.Todo, error) {
-	todo := model.Todo{
-		TaskName: taskName,
-	}
-
-	tx, err := tr.db.Begin()
-	if err != nil {
-		return todo, err
-	}
-
-	stmt, err := tx.Prepare(`
-      INSERT INTO
-      todo (task_name, updated_at)
-      VALUES ($1, $2)
-      RETURNING id, updated_at
-      `)
-	if err != nil {
-		return todo, err
-	}
-
-	defer stmt.Close()
-
+func (tr *TodoRepository) AddTodo(taskName string) (todo.Todo, error) {
+	var t Todo
 	timestamp := pq.FormatTimestamp(time.Now())
 
-	{
-		err := stmt.QueryRow(taskName, timestamp).Scan(&todo.Id, &todo.UpdatedAt)
-		if err != nil {
-			return todo, err
-		}
+	if err := tr.db.Get(
+		&t,
+		`
+    INSERT INTO todo (task_name, updated_at)
+    VALUES ($1, $2)
+    RETURNING id, updated_at
+    `,
+		taskName,
+		timestamp,
+	); err != nil {
+		return todo.Todo{}, err
 	}
 
-	{
-		err := tx.Commit()
-		if err != nil {
-			return todo, err
-		}
+	todo := todo.Todo{
+		Id:        t.Id,
+		TaskName:  taskName,
+		UpdatedAt: t.UpdatedAt,
 	}
 
 	return todo, nil
 }
 
-func (tr *TodoRepository) UpdateTaskName(id, taskName string) (model.Todo, error) {
-	todo := model.Todo{
-		Id: id,
-	}
-
-	tx, err := tr.db.Begin()
-	if err != nil {
-		return todo, err
-	}
-
-	stmt, err := tx.Prepare(`
-	     UPDATE todo
-       SET task_name = $1, updated_at = $2
-       WHERE id = $3
-       RETURNING task_name, completed, updated_at
-	     `)
-	if err != nil {
-		return todo, err
-	}
-
-	defer stmt.Close()
-
+func (tr *TodoRepository) UpdateTaskName(id, taskName string) (todo.Todo, error) {
+	var t Todo
 	timestamp := pq.FormatTimestamp(time.Now())
 
-	err = stmt.QueryRow(taskName, timestamp, id).Scan(&todo.TaskName, &todo.Completed, &todo.UpdatedAt)
-	if err != nil {
-		return todo, err
+	if err := tr.db.Get(
+		&t,
+		`
+    UPDATE todo
+    SET task_name = $1, updated_at = $2
+    WHERE id = $3
+    RETURNING task_name, completed, updated_at
+    `,
+		taskName,
+		timestamp,
+		id,
+	); err != nil {
+		return todo.Todo{}, err
 	}
 
-	{
-		err := tx.Commit()
-		if err != nil {
-			return todo, err
-		}
+	todo := todo.Todo{
+		Id:        id,
+		TaskName:  t.TaskName,
+		UpdatedAt: t.UpdatedAt,
+		Completed: t.Completed,
 	}
 
 	return todo, nil
 }
 
-func (tr *TodoRepository) UpdateCompleted(id string, completed bool) (model.Todo, error) {
-	todo := model.Todo{
-		Id: id,
-	}
-
-	tx, err := tr.db.Begin()
-	if err != nil {
-		return todo, err
-	}
-
-	stmt, err := tx.Prepare(`
-	     UPDATE todo
-       SET completed = $1, updated_at = $2
-       WHERE id = $3
-       RETURNING task_name, completed, updated_at
-	     `)
-	if err != nil {
-		return todo, err
-	}
-
-	defer stmt.Close()
-
+func (tr *TodoRepository) UpdateCompleted(id string, completed bool) (todo.Todo, error) {
+	var t Todo
 	timestamp := pq.FormatTimestamp(time.Now())
 
-	err = stmt.QueryRow(completed, timestamp, id).Scan(&todo.TaskName, &todo.Completed, &todo.UpdatedAt)
-	if err != nil {
-		return todo, err
+	if err := tr.db.Get(
+		&t,
+		`
+    UPDATE todo
+    SET completed = $1, updated_at = $2
+    WHERE id = $3
+    RETURNING task_name, completed, updated_at
+    `,
+		completed,
+		timestamp,
+		id,
+	); err != nil {
+		return todo.Todo{}, err
 	}
 
-	{
-		err := tx.Commit()
-		if err != nil {
-			return todo, err
-		}
+	todo := todo.Todo{
+		Id:        id,
+		TaskName:  t.TaskName,
+		UpdatedAt: t.UpdatedAt,
+		Completed: t.Completed,
 	}
 
 	return todo, nil
 }
 
 func (tr *TodoRepository) DeleteTodo(id string) (bool, error) {
-	tx, err := tr.db.Begin()
-	if err != nil {
-		return false, err
-	}
-
-	stmt, err := tx.Prepare("DELETE FROM todo WHERE id = $1")
-	if err != nil {
-		return false, err
-	}
-
-	defer stmt.Close()
-
-	if _, err := stmt.Exec(id); err != nil {
-		return false, err
-	}
-
-	if err := tx.Commit(); err != nil {
+	if _, err := tr.db.Exec("DELETE FROM todo WHERE id = $1", id); err != nil {
 		return false, err
 	}
 

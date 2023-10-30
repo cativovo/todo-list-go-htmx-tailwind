@@ -4,28 +4,26 @@ import (
 	"log"
 	"reflect"
 	"testing"
-
-	"github.com/cativovo/todo-list-go-htmx-tailwind/pkg/model"
 )
 
 type mockRepository struct {
-	todos []model.Todo
+	todos []Todo
 }
 
-func (mr *mockRepository) GetAllTodos() ([]model.Todo, error) {
+func (mr *mockRepository) GetAllTodos() ([]Todo, error) {
 	return mr.todos, nil
 }
 
-func (mr *mockRepository) AddTodo(t string) (model.Todo, error) {
-	return model.Todo{TaskName: t}, nil
+func (mr *mockRepository) AddTodo(t string) (Todo, error) {
+	return Todo{TaskName: t}, nil
 }
 
-func (mr *mockRepository) UpdateTaskName(i, t string) (model.Todo, error) {
-	return model.Todo{Id: i, TaskName: t}, nil
+func (mr *mockRepository) UpdateTaskName(i, t string) (Todo, error) {
+	return Todo{Id: i, TaskName: t}, nil
 }
 
-func (mr *mockRepository) UpdateCompleted(i string, c bool) (model.Todo, error) {
-	return model.Todo{Id: i, Completed: c}, nil
+func (mr *mockRepository) UpdateCompleted(i string, c bool) (Todo, error) {
+	return Todo{Id: i, Completed: c}, nil
 }
 
 func (mr *mockRepository) DeleteTodo(id string) (bool, error) {
@@ -47,7 +45,7 @@ func (mr *mockRepository) DeleteTodo(id string) (bool, error) {
 }
 
 func TestGetTodos(t *testing.T) {
-	expected := []model.Todo{
+	expected := []Todo{
 		{
 			Id:        "1",
 			TaskName:  "Todo 1",
@@ -74,7 +72,7 @@ func TestGetTodos(t *testing.T) {
 }
 
 func TestAddTodo(t *testing.T) {
-	expected := model.Todo{
+	expected := Todo{
 		TaskName: "Todo 1",
 	}
 
@@ -97,7 +95,7 @@ func TestAddTodo(t *testing.T) {
 }
 
 func TestUpdateTaskName(t *testing.T) {
-	expected := model.Todo{
+	expected := Todo{
 		Id:       "123",
 		TaskName: "Todo 1",
 	}
@@ -125,7 +123,7 @@ func TestUpdateTaskName(t *testing.T) {
 }
 
 func TestUpdateCompleted(t *testing.T) {
-	expected := model.Todo{
+	expected := Todo{
 		Id:        "123",
 		Completed: true,
 	}
@@ -149,7 +147,7 @@ func TestUpdateCompleted(t *testing.T) {
 }
 
 func TestDeleteTodo(t *testing.T) {
-	todos := []model.Todo{
+	todos := []Todo{
 		{
 			Id:        "1",
 			TaskName:  "Todo 1",
