@@ -8,3 +8,9 @@ run_dev:
 
 test:
 	go test ./... -v
+
+build: test
+	go build -o server ./cmd
+
+run: build
+	./server
