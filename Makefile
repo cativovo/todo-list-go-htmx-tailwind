@@ -7,4 +7,4 @@ run_dev:
 	go run cmd/server.go
 
 test:
-	go test ./...
+	go test ./... -v
